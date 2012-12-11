@@ -32,7 +32,12 @@
 
 #include <cassert>
 
-template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
+struct QHashMapDefaultAlloc {
+  void* New(size_t sz) { return operator new(sz); }
+  static void Delete(void* p) { operator delete(p); }
+};
+
+template<typename KeyType, typename ValueType, class KeyTraits, class Allocator = QHashMapDefaultAlloc>
 class QHashMap {
  public:
   // The default capacity.  This is used by the call sites which want

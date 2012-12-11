@@ -23,14 +23,9 @@ struct KeyTraits {
 
 };
 
-struct Allocator {
-  void* New(size_t sz) { return malloc(sz); }
-  static void Delete(void* p) { free(p); }
-};
-
 int main(int argc, char** argv)
 {
-  QHashMap<const char*, const char*, KeyTraits, Allocator> map;
+  QHashMap<const char*, const char*, KeyTraits> map;
 
   map.Lookup("hello", true)->value = "world";
   printf("%s\n", map.Lookup("hello", false)->value);
