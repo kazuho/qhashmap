@@ -56,8 +56,8 @@ class QHashMap {
   // Some clients may not need to use the value slot
   // (e.g. implementers of sets, where the key is the value).
   struct Entry {
-    KeyType key;
-    ValueType value;
+    KeyType first;
+    ValueType second;
   };
 
   // If an entry with matching key is found, Lookup()
@@ -151,14 +151,14 @@ QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Lookup(
     KeyType key, bool insert, Allocator allocator) {
   // Find a matching entry.
   Entry* p = Probe(key);
-  if (p->key != KeyTraits::null()) {
+  if (p->first != KeyTraits::null()) {
     return p;
   }
 
   // No entry found; insert one if necessary.
   if (insert) {
-    p->key = key;
-    // p->value = NULL;
+    p->first = key;
+    // p->second = NULL;
     occupancy_++;
 
     // Grow the map if we reached >= 80% occupancy.
@@ -179,7 +179,7 @@ template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
 bool QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Remove(KeyType key) {
   // Lookup the entry for the key to remove.
   Entry* p = Probe(key);
-  if (p->key == KeyTraits::null()) {
+  if (p->first == KeyTraits::null()) {
     // Key not found nothing to remove.
     return false;
   }
@@ -212,12 +212,12 @@ bool QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Remove(KeyType key) {
     // All entries between p and q have their initial position between p and q
     // and the entry p can be cleared without breaking the search for these
     // entries.
-    if (q->key == KeyTraits::null()) {
+    if (q->first == KeyTraits::null()) {
       break;
     }
 
     // Find the initial position for the entry at position q.
-    Entry* r = map_ + (KeyTraits::hash(q->key) & (capacity_ - 1));
+    Entry* r = map_ + (KeyTraits::hash(q->first) & (capacity_ - 1));
 
     // If the entry at position q has its initial position outside the range
     // between p and q it can be moved forward to position p and will still be
@@ -230,7 +230,7 @@ bool QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Remove(KeyType key) {
   }
 
   // Clear the entry which is allowed to en emptied.
-  p->key = KeyTraits::null();
+  p->first = KeyTraits::null();
   occupancy_--;
   return true;
 }
@@ -241,7 +241,7 @@ void QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Clear() {
   // Mark all entries as empty.
   const Entry* end = map_end();
   for (Entry* p = map_; p < end; p++) {
-    p->key = KeyTraits::null();
+    p->first = KeyTraits::null();
   }
   occupancy_ = 0;
 }
@@ -260,7 +260,7 @@ typename QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Entry*
   const Entry* end = map_end();
   assert(map_ - 1 <= p && p < end);
   for (p++; p < end; p++) {
-    if (p->key != KeyTraits::null()) {
+    if (p->first != KeyTraits::null()) {
       return p;
     }
   }
@@ -279,9 +279,9 @@ typename QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Entry*
   assert(map_ <= p && p < end);
 
   assert(occupancy_ < capacity_);  // Guarantees loop termination.
-  while (p->key != KeyTraits::null()
-         && (KeyTraits::hash(key) != KeyTraits::hash(p->key) ||
-             ! KeyTraits::equals(key, p->key))) {
+  while (p->first != KeyTraits::null()
+         && (KeyTraits::hash(key) != KeyTraits::hash(p->first) ||
+             ! KeyTraits::equals(key, p->first))) {
     p++;
     if (p >= end) {
       p = map_;
@@ -313,8 +313,8 @@ void QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Resize(
 
   // Rehash all current entries.
   for (Entry* p = map; n > 0; p++) {
-    if (p->key != KeyTraits::null()) {
-      Lookup(p->key, true)->value = p->value;
+    if (p->first != KeyTraits::null()) {
+      Lookup(p->first, true)->second = p->second;
       n--;
     }
   }

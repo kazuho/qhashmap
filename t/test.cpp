@@ -27,8 +27,8 @@ int main(int argc, char** argv)
 {
   QHashMap<const char*, const char*, KeyTraits> map;
 
-  map.Lookup("hello", true)->value = "world";
-  printf("%s\n", map.Lookup("hello", false)->value);
+  map.Lookup("hello", true)->second = "world";
+  printf("%s\n", map.Lookup("hello", false)->second);
 
   return 0;
 }
