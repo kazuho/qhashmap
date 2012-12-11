@@ -130,7 +130,7 @@ class QHashMap {
   iterator begin() const { return iterator(this, this->Start()); }
   iterator end() const { return iterator(this, NULL); }
   iterator find(KeyType key) {
-    return iterator(this, this->Lookup(key));
+    return iterator(this, this->Lookup(key, false));
   }
   iterator erase(const iterator& i) {
     iterator n = i;

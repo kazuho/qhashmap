@@ -25,10 +25,16 @@ struct KeyTraits {
 
 int main(int argc, char** argv)
 {
-  QHashMap<const char*, const char*, KeyTraits> map;
+  typedef QHashMap<const char*, const char*, KeyTraits> StringMap;
+
+  StringMap map;
 
   map.Lookup("hello", true)->second = "world";
-  printf("%s\n", map.Lookup("hello", false)->second);
+  map.Lookup("guten", true)->second = "morgen";
+
+  for (StringMap::iterator i = map.begin(); i != map.end(); ++i) {
+    printf("%s => %s\n", i->first, i->second);
+  }
 
   return 0;
 }
