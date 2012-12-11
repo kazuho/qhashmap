@@ -103,20 +103,21 @@ class QHashMap {
   void Resize(Allocator allocator = Allocator());
 
  public:
-  class Iterator {
+  class iterator {
+    iterator operator++(int); // disabled
    public:
-    Iterator& operator++() {
+    iterator& operator++() {
       entry_ = map_->Next(entry_);
       return *this;
     }
 
     Entry* operator*() { return entry_; }
     Entry* operator->() { return entry_; }
-    bool operator==(const Iterator& other) { return entry_ == other.entry_; }
-    bool operator!=(const Iterator& other) { return entry_ != other.entry_; }
+    bool operator==(const iterator& other) { return entry_ == other.entry_; }
+    bool operator!=(const iterator& other) { return entry_ != other.entry_; }
 
    private:
-    Iterator(const QHashMap* map, Entry* entry)
+    iterator(const QHashMap* map, Entry* entry)
       : map_(map), entry_(entry) {}
 
     const QHashMap* map_;
@@ -125,9 +126,9 @@ class QHashMap {
     friend class QHashMap<KeyType, ValueType, KeyTraits, Allocator>;
   };
 
-  Iterator begin() const { return Iterator(this, this->Start()); }
-  Iterator end() const { return Iterator(this, NULL); }
-  Iterator find(KeyType key) {
+  iterator begin() const { return Iterator(this, this->Start()); }
+  iterator end() const { return Iterator(this, NULL); }
+  iterator find(KeyType key) {
     return Iterator(this, this->Lookup(key));
   }
 };
