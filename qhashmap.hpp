@@ -127,10 +127,10 @@ class QHashMap {
     friend class QHashMap<KeyType, ValueType, KeyTraits, Allocator>;
   };
 
-  iterator begin() const { return Iterator(this, this->Start()); }
-  iterator end() const { return Iterator(this, NULL); }
+  iterator begin() const { return iterator(this, this->Start()); }
+  iterator end() const { return iterator(this, NULL); }
   iterator find(KeyType key) {
-    return Iterator(this, this->Lookup(key));
+    return iterator(this, this->Lookup(key));
   }
   iterator erase(const iterator& i) {
     iterator n = i;
