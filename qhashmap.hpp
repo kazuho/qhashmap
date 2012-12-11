@@ -30,6 +30,7 @@
 #ifndef QHASHMAP_HPP
 #define QHASHMAP_HPP
 
+#include <algorithm>
 #include <cassert>
 
 struct QHashMapDefaultAlloc {
@@ -39,6 +40,7 @@ struct QHashMapDefaultAlloc {
 
 template<typename KeyType, typename ValueType, class KeyTraits, class Allocator = QHashMapDefaultAlloc>
 class QHashMap {
+  QHashMap& operator=(const QHashMap&); // = delete
  public:
   // The default capacity.  This is used by the call sites which want
   // to pass in a non-default AllocationPolicy but want to use the
@@ -49,7 +51,7 @@ class QHashMap {
   // it must be a power of 2 (and thus must not be 0).
   QHashMap(size_t capacity = kDefaultHashMapCapacity,
            Allocator allocator = Allocator());
-
+  QHashMap(const QHashMap& x, Allocator allocator = Allocator());
   ~QHashMap();
 
   // HashMap entries are (key, value, hash) triplets.
@@ -144,6 +146,16 @@ template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
 QHashMap<KeyType, ValueType, KeyTraits, Allocator>::QHashMap(
     size_t initial_capacity, Allocator allocator) {
   Initialize(initial_capacity, allocator);
+}
+
+
+template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
+QHashMap<KeyType, ValueType, KeyTraits, Allocator>::QHashMap(
+    const QHashMap& x, Allocator allocator) {
+  map_ = static_cast<Entry*>(allocator.New(x.capacity_ * sizeof(Entry)));
+  capacity_ = x.capacity_;
+  occupancy_ = x.occupancy_;
+  std::copy(x.map_, x.map_ + x.capacity_, map_);
 }
 
 
