@@ -74,7 +74,7 @@ class QHashMap {
   void Clear();
 
   // The number of (non-empty) entries in the table.
-  size_t occupancy() const { return occupancy_; }
+  size_t size() const { return occupancy_; }
 
   // The capacity of the table. The implementation
   // makes sure that occupancy is at most 80% of
