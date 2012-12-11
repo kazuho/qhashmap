@@ -3,9 +3,7 @@
 #include <cstring>
 #include "qhashmap.hpp"
 
-struct Traits {
-  typedef const char* KeyType;
-  typedef const char* ValueType;
+struct KeyTraits {
 
   // the good old djb hash
   static unsigned hash(const char* s) {
@@ -21,17 +19,18 @@ struct Traits {
     return strcmp(x, y) == 0;
   }
 
-  static KeyType null() { return NULL; }
+  static const char* null() { return NULL; }
 
-  struct Allocator {
-    void* New(size_t sz) { return malloc(sz); }
-    static void Delete(void* p) { free(p); }
-  };
+};
+
+struct Allocator {
+  void* New(size_t sz) { return malloc(sz); }
+  static void Delete(void* p) { free(p); }
 };
 
 int main(int argc, char** argv)
 {
-  QHashMap<Traits> map;
+  QHashMap<const char*, const char*, KeyTraits, Allocator> map;
 
   map.Lookup("hello", true)->value = "world";
   printf("%s\n", map.Lookup("hello", false)->value);

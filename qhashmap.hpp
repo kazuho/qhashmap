@@ -32,7 +32,7 @@
 
 #include <cassert>
 
-template<typename Traits>
+template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
 class QHashMap {
  public:
   // The default capacity.  This is used by the call sites which want
@@ -43,7 +43,7 @@ class QHashMap {
   // initial_capacity is the size of the initial hash map;
   // it must be a power of 2 (and thus must not be 0).
   QHashMap(size_t capacity = kDefaultHashMapCapacity,
-           typename Traits::Allocator allocator = typename Traits::Allocator());
+           Allocator allocator = Allocator());
 
   ~QHashMap();
 
@@ -51,8 +51,8 @@ class QHashMap {
   // Some clients may not need to use the value slot
   // (e.g. implementers of sets, where the key is the value).
   struct Entry {
-    typename Traits::KeyType key;
-    typename Traits::ValueType value;
+    KeyType key;
+    ValueType value;
   };
 
   // If an entry with matching key is found, Lookup()
@@ -60,11 +60,10 @@ class QHashMap {
   // but insert is set, a new entry is inserted with
   // corresponding key, key hash, and NULL value.
   // Otherwise, NULL is returned.
-  Entry* Lookup(typename Traits::KeyType key, bool insert,
-                typename Traits::Allocator allocator = typename Traits::Allocator());
+  Entry* Lookup(KeyType key, bool insert, Allocator allocator = Allocator());
 
   // Removes the entry with matching key.
-  bool Remove(typename Traits::KeyType key);
+  bool Remove(KeyType key);
 
   // Empties the hash map (occupancy() == 0).
   void Clear();
@@ -94,9 +93,9 @@ class QHashMap {
   size_t occupancy_;
 
   Entry* map_end() const { return map_ + capacity_; }
-  Entry* Probe(typename Traits::KeyType key);
-  void Initialize(size_t capacity, typename Traits::Allocator allocator = typename Traits::Allocator());
-  void Resize(typename Traits::Allocator allocator = typename Traits::Allocator());
+  Entry* Probe(KeyType key);
+  void Initialize(size_t capacity, Allocator allocator = Allocator());
+  void Resize(Allocator allocator = Allocator());
 
  public:
   class Iterator {
@@ -111,42 +110,42 @@ class QHashMap {
     bool operator!=(const Iterator& other) { return entry_ != other.entry_; }
 
    private:
-    Iterator(const QHashMap<Traits>* map, Entry* entry)
+    Iterator(const QHashMap* map, Entry* entry)
       : map_(map), entry_(entry) {}
 
-    const QHashMap<Traits>* map_;
+    const QHashMap* map_;
     Entry* entry_;
 
-    friend class QHashMap<Traits>;
+    friend class QHashMap<KeyType, ValueType, KeyTraits, Allocator>;
   };
 
   Iterator begin() const { return Iterator(this, this->Start()); }
   Iterator end() const { return Iterator(this, NULL); }
-  Iterator find(typename Traits::KeyType key) {
+  Iterator find(KeyType key) {
     return Iterator(this, this->Lookup(key));
   }
 };
 
-template<typename Traits>
-QHashMap<Traits>::QHashMap(
-    size_t initial_capacity, typename Traits::Allocator allocator) {
+template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
+QHashMap<KeyType, ValueType, KeyTraits, Allocator>::QHashMap(
+    size_t initial_capacity, Allocator allocator) {
   Initialize(initial_capacity, allocator);
 }
 
 
-template<typename Traits>
-QHashMap<Traits>::~QHashMap() {
-  Traits::Allocator::Delete(map_);
+template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
+QHashMap<KeyType, ValueType, KeyTraits, Allocator>::~QHashMap() {
+  Allocator::Delete(map_);
 }
 
 
-template<typename Traits>
-typename QHashMap<Traits>::Entry*
-QHashMap<Traits>::Lookup(
-    typename Traits::KeyType key, bool insert, typename Traits::Allocator allocator) {
+template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
+typename QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Entry*
+QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Lookup(
+    KeyType key, bool insert, Allocator allocator) {
   // Find a matching entry.
   Entry* p = Probe(key);
-  if (p->key != Traits::null()) {
+  if (p->key != KeyTraits::null()) {
     return p;
   }
 
@@ -170,11 +169,11 @@ QHashMap<Traits>::Lookup(
 }
 
 
-template<typename Traits>
-bool QHashMap<Traits>::Remove(typename Traits::KeyType key) {
+template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
+bool QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Remove(KeyType key) {
   // Lookup the entry for the key to remove.
   Entry* p = Probe(key);
-  if (p->key == Traits::null()) {
+  if (p->key == KeyTraits::null()) {
     // Key not found nothing to remove.
     return false;
   }
@@ -207,12 +206,12 @@ bool QHashMap<Traits>::Remove(typename Traits::KeyType key) {
     // All entries between p and q have their initial position between p and q
     // and the entry p can be cleared without breaking the search for these
     // entries.
-    if (q->key == Traits::null()) {
+    if (q->key == KeyTraits::null()) {
       break;
     }
 
     // Find the initial position for the entry at position q.
-    Entry* r = map_ + (Traits::hash(q->key) & (capacity_ - 1));
+    Entry* r = map_ + (KeyTraits::hash(q->key) & (capacity_ - 1));
 
     // If the entry at position q has its initial position outside the range
     // between p and q it can be moved forward to position p and will still be
@@ -225,37 +224,37 @@ bool QHashMap<Traits>::Remove(typename Traits::KeyType key) {
   }
 
   // Clear the entry which is allowed to en emptied.
-  p->key = Traits::null();
+  p->key = KeyTraits::null();
   occupancy_--;
   return true;
 }
 
 
-template<typename Traits>
-void QHashMap<Traits>::Clear() {
+template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
+void QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Clear() {
   // Mark all entries as empty.
   const Entry* end = map_end();
   for (Entry* p = map_; p < end; p++) {
-    p->key = Traits::null();
+    p->key = KeyTraits::null();
   }
   occupancy_ = 0;
 }
 
 
-template<typename Traits>
-typename QHashMap<Traits>::Entry*
-    QHashMap<Traits>::Start() const {
+template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
+typename QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Entry*
+    QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Start() const {
   return Next(map_ - 1);
 }
 
 
-template<typename Traits>
-typename QHashMap<Traits>::Entry*
-    QHashMap<Traits>::Next(Entry* p) const {
+template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
+typename QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Entry*
+    QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Next(Entry* p) const {
   const Entry* end = map_end();
   assert(map_ - 1 <= p && p < end);
   for (p++; p < end; p++) {
-    if (p->key != Traits::null()) {
+    if (p->key != KeyTraits::null()) {
       return p;
     }
   }
@@ -263,18 +262,20 @@ typename QHashMap<Traits>::Entry*
 }
 
 
-template<typename Traits>
-typename QHashMap<Traits>::Entry*
-    QHashMap<Traits>::Probe(typename Traits::KeyType key) {
+template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
+typename QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Entry*
+    QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Probe(KeyType key) {
   assert(key != NULL);
 
   assert((capacity_ & (capacity_ - 1)) == 0);
-  Entry* p = map_ + (Traits::hash(key) & (capacity_ - 1));
+  Entry* p = map_ + (KeyTraits::hash(key) & (capacity_ - 1));
   const Entry* end = map_end();
   assert(map_ <= p && p < end);
 
   assert(occupancy_ < capacity_);  // Guarantees loop termination.
-  while (p->key != Traits::null() && (Traits::hash(key) != Traits::hash(p->key) || !Traits::equals(key, p->key))) {
+  while (p->key != KeyTraits::null()
+         && (KeyTraits::hash(key) != KeyTraits::hash(p->key) ||
+             ! KeyTraits::equals(key, p->key))) {
     p++;
     if (p >= end) {
       p = map_;
@@ -285,9 +286,9 @@ typename QHashMap<Traits>::Entry*
 }
 
 
-template<typename Traits>
-void QHashMap<Traits>::Initialize(
-    size_t capacity, typename Traits::Allocator allocator) {
+template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
+void QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Initialize(
+    size_t capacity, Allocator allocator) {
   assert((capacity & (capacity - 1)) == 0);
   map_ = reinterpret_cast<Entry*>(allocator.New(capacity * sizeof(Entry)));
   capacity_ = capacity;
@@ -295,8 +296,9 @@ void QHashMap<Traits>::Initialize(
 }
 
 
-template<typename Traits>
-void QHashMap<Traits>::Resize(typename Traits::Allocator allocator) {
+template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
+void QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Resize(
+    Allocator allocator) {
   Entry* map = map_;
   size_t n = occupancy_;
 
@@ -305,14 +307,14 @@ void QHashMap<Traits>::Resize(typename Traits::Allocator allocator) {
 
   // Rehash all current entries.
   for (Entry* p = map; n > 0; p++) {
-    if (p->key != Traits::null()) {
+    if (p->key != KeyTraits::null()) {
       Lookup(p->key, true)->value = p->value;
       n--;
     }
   }
 
   // Delete old map.
-  Traits::Allocator::Delete(map);
+  Allocator::Delete(map);
 }
 
 #endif  // QHASHMAP_HPP
