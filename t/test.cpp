@@ -24,7 +24,6 @@ struct Traits {
   static KeyType null() { return NULL; }
 
   struct Allocator {
-    Allocator(void*) {}
     void* New(size_t sz) { return malloc(sz); }
     static void Delete(void* p) { free(p); }
   };

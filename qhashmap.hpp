@@ -43,7 +43,7 @@ class QHashMap {
   // initial_capacity is the size of the initial hash map;
   // it must be a power of 2 (and thus must not be 0).
   QHashMap(size_t capacity = kDefaultHashMapCapacity,
-           typename Traits::Allocator allocator = NULL);
+           typename Traits::Allocator allocator = typename Traits::Allocator());
 
   ~QHashMap();
 
@@ -61,7 +61,7 @@ class QHashMap {
   // corresponding key, key hash, and NULL value.
   // Otherwise, NULL is returned.
   Entry* Lookup(typename Traits::KeyType key, bool insert,
-                typename Traits::Allocator allocator = NULL);
+                typename Traits::Allocator allocator = typename Traits::Allocator());
 
   // Removes the entry with matching key.
   bool Remove(typename Traits::KeyType key);
@@ -95,8 +95,8 @@ class QHashMap {
 
   Entry* map_end() const { return map_ + capacity_; }
   Entry* Probe(typename Traits::KeyType key);
-  void Initialize(size_t capacity, typename Traits::Allocator allocator = NULL);
-  void Resize(typename Traits::Allocator allocator = NULL);
+  void Initialize(size_t capacity, typename Traits::Allocator allocator = typename Traits::Allocator());
+  void Resize(typename Traits::Allocator allocator = typename Traits::Allocator());
 
  public:
   class Iterator {
