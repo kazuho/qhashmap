@@ -68,6 +68,7 @@ class QHashMap {
   Entry* Lookup(KeyType key, bool insert, Allocator allocator = Allocator());
 
   // Removes the entry with matching key.
+  void Remove(Entry* p);
   bool Remove(KeyType key);
 
   // Empties the hash map (occupancy() == 0).
@@ -131,6 +132,9 @@ class QHashMap {
   iterator find(KeyType key) {
     return Iterator(this, this->Lookup(key));
   }
+  void erase(const iterator& i) {
+    Remove(i.entry_);
+  }
 };
 
 template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
@@ -177,14 +181,7 @@ QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Lookup(
 
 
 template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
-bool QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Remove(KeyType key) {
-  // Lookup the entry for the key to remove.
-  Entry* p = Probe(key);
-  if (p->first == KeyTraits::null()) {
-    // Key not found nothing to remove.
-    return false;
-  }
-
+void QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Remove(Entry* p) {
   // To remove an entry we need to ensure that it does not create an empty
   // entry that will cause the search for another entry to stop too soon. If all
   // the entries between the entry to remove and the next empty slot have their
@@ -233,6 +230,18 @@ bool QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Remove(KeyType key) {
   // Clear the entry which is allowed to en emptied.
   p->first = KeyTraits::null();
   occupancy_--;
+}
+
+
+template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
+bool QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Remove(KeyType key) {
+  // Lookup the entry for the key to remove.
+  Entry* p = Probe(key);
+  if (p->first == KeyTraits::null()) {
+    // Key not found nothing to remove.
+    return false;
+  }
+  Remove(p);
   return true;
 }
 
