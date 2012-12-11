@@ -112,6 +112,7 @@ class QHashMap {
 
     Entry* operator*() { return entry_; }
     Entry* operator->() { return entry_; }
+    bool operator==(const Iterator& other) { return entry_ == other.entry_; }
     bool operator!=(const Iterator& other) { return entry_ != other.entry_; }
 
    private:
