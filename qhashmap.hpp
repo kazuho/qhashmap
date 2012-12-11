@@ -1,3 +1,5 @@
+// modified under the following, original copyright
+
 // Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -25,41 +27,32 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_HASHMAP_H_
-#define V8_HASHMAP_H_
+#ifndef QHASHMAP_HPP
+#define QHASHMAP_HPP
 
-#include "allocation.h"
-#include "checks.h"
-#include "utils.h"
+#include <cassert>
 
-namespace v8 {
-namespace internal {
-
-template<class AllocationPolicy>
-class TemplateHashMapImpl {
+template<typename Traits>
+class QHashMap {
  public:
-  typedef bool (*MatchFun) (void* key1, void* key2);
-
   // The default capacity.  This is used by the call sites which want
   // to pass in a non-default AllocationPolicy but want to use the
   // default value of capacity specified by the implementation.
-  static const uint32_t kDefaultHashMapCapacity = 8;
+  static const size_t kDefaultHashMapCapacity = 8;
 
   // initial_capacity is the size of the initial hash map;
   // it must be a power of 2 (and thus must not be 0).
-  TemplateHashMapImpl(MatchFun match,
-                      uint32_t capacity = kDefaultHashMapCapacity,
-                      AllocationPolicy allocator = AllocationPolicy());
+  QHashMap(size_t capacity = kDefaultHashMapCapacity,
+           typename Traits::Allocator allocator = NULL);
 
-  ~TemplateHashMapImpl();
+  ~QHashMap();
 
   // HashMap entries are (key, value, hash) triplets.
   // Some clients may not need to use the value slot
   // (e.g. implementers of sets, where the key is the value).
   struct Entry {
-    void* key;
-    void* value;
-    uint32_t hash;  // the full hash value for key
+    typename Traits::KeyType key;
+    typename Traits::ValueType value;
   };
 
   // If an entry with matching key is found, Lookup()
@@ -67,24 +60,22 @@ class TemplateHashMapImpl {
   // but insert is set, a new entry is inserted with
   // corresponding key, key hash, and NULL value.
   // Otherwise, NULL is returned.
-  Entry* Lookup(void* key, uint32_t hash, bool insert,
-                AllocationPolicy allocator = AllocationPolicy());
+  Entry* Lookup(typename Traits::KeyType key, bool insert,
+                typename Traits::Allocator allocator = NULL);
 
   // Removes the entry with matching key.
-  // It returns the value of the deleted entry
-  // or null if there is no value for such key.
-  void* Remove(void* key, uint32_t hash);
+  bool Remove(typename Traits::KeyType key);
 
   // Empties the hash map (occupancy() == 0).
   void Clear();
 
   // The number of (non-empty) entries in the table.
-  uint32_t occupancy() const { return occupancy_; }
+  size_t occupancy() const { return occupancy_; }
 
   // The capacity of the table. The implementation
   // makes sure that occupancy is at most 80% of
   // the table capacity.
-  uint32_t capacity() const { return capacity_; }
+  size_t capacity() const { return capacity_; }
 
   // Iteration
   //
@@ -98,54 +89,77 @@ class TemplateHashMapImpl {
   Entry* Next(Entry* p) const;
 
  private:
-  MatchFun match_;
   Entry* map_;
-  uint32_t capacity_;
-  uint32_t occupancy_;
+  size_t capacity_;
+  size_t occupancy_;
 
   Entry* map_end() const { return map_ + capacity_; }
-  Entry* Probe(void* key, uint32_t hash);
-  void Initialize(uint32_t capacity, AllocationPolicy allocator);
-  void Resize(AllocationPolicy allocator);
+  Entry* Probe(typename Traits::KeyType key);
+  void Initialize(size_t capacity, typename Traits::Allocator allocator = NULL);
+  void Resize(typename Traits::Allocator allocator = NULL);
+
+ public:
+  class Iterator {
+   public:
+    Iterator& operator++() {
+      entry_ = map_->Next(entry_);
+      return *this;
+    }
+
+    Entry* operator*() { return entry_; }
+    Entry* operator->() { return entry_; }
+    bool operator!=(const Iterator& other) { return entry_ != other.entry_; }
+
+   private:
+    Iterator(const QHashMap<Traits>* map, Entry* entry)
+      : map_(map), entry_(entry) {}
+
+    const QHashMap<Traits>* map_;
+    Entry* entry_;
+
+    friend class QHashMap<Traits>;
+  };
+
+  Iterator begin() const { return Iterator(this, this->Start()); }
+  Iterator end() const { return Iterator(this, NULL); }
+  Iterator find(typename Traits::KeyType key) {
+    return Iterator(this, this->Lookup(key));
+  }
 };
 
-typedef TemplateHashMapImpl<FreeStoreAllocationPolicy> HashMap;
-
-template<class AllocationPolicy>
-TemplateHashMapImpl<AllocationPolicy>::TemplateHashMapImpl(
-    MatchFun match, uint32_t initial_capacity, AllocationPolicy allocator) {
-  match_ = match;
+template<typename Traits>
+QHashMap<Traits>::QHashMap(
+    size_t initial_capacity, typename Traits::Allocator allocator) {
   Initialize(initial_capacity, allocator);
 }
 
 
-template<class AllocationPolicy>
-TemplateHashMapImpl<AllocationPolicy>::~TemplateHashMapImpl() {
-  AllocationPolicy::Delete(map_);
+template<typename Traits>
+QHashMap<Traits>::~QHashMap() {
+  Traits::Allocator::Delete(map_);
 }
 
 
-template<class AllocationPolicy>
-typename TemplateHashMapImpl<AllocationPolicy>::Entry*
-TemplateHashMapImpl<AllocationPolicy>::Lookup(
-    void* key, uint32_t hash, bool insert, AllocationPolicy allocator) {
+template<typename Traits>
+typename QHashMap<Traits>::Entry*
+QHashMap<Traits>::Lookup(
+    typename Traits::KeyType key, bool insert, typename Traits::Allocator allocator) {
   // Find a matching entry.
-  Entry* p = Probe(key, hash);
-  if (p->key != NULL) {
+  Entry* p = Probe(key);
+  if (p->key != Traits::null()) {
     return p;
   }
 
   // No entry found; insert one if necessary.
   if (insert) {
     p->key = key;
-    p->value = NULL;
-    p->hash = hash;
+    // p->value = NULL;
     occupancy_++;
 
     // Grow the map if we reached >= 80% occupancy.
     if (occupancy_ + occupancy_/4 >= capacity_) {
       Resize(allocator);
-      p = Probe(key, hash);
+      p = Probe(key);
     }
 
     return p;
@@ -156,16 +170,15 @@ TemplateHashMapImpl<AllocationPolicy>::Lookup(
 }
 
 
-template<class AllocationPolicy>
-void* TemplateHashMapImpl<AllocationPolicy>::Remove(void* key, uint32_t hash) {
+template<typename Traits>
+bool QHashMap<Traits>::Remove(typename Traits::KeyType key) {
   // Lookup the entry for the key to remove.
-  Entry* p = Probe(key, hash);
-  if (p->key == NULL) {
+  Entry* p = Probe(key);
+  if (p->key == Traits::null()) {
     // Key not found nothing to remove.
-    return NULL;
+    return false;
   }
 
-  void* value = p->value;
   // To remove an entry we need to ensure that it does not create an empty
   // entry that will cause the search for another entry to stop too soon. If all
   // the entries between the entry to remove and the next empty slot have their
@@ -180,7 +193,7 @@ void* TemplateHashMapImpl<AllocationPolicy>::Remove(void* key, uint32_t hash) {
 
   // This guarantees loop termination as there is at least one empty entry so
   // eventually the removed entry will have an empty entry after it.
-  ASSERT(occupancy_ < capacity_);
+  assert(occupancy_ < capacity_);
 
   // p is the candidate entry to clear. q is used to scan forwards.
   Entry* q = p;  // Start at the entry to remove.
@@ -194,12 +207,12 @@ void* TemplateHashMapImpl<AllocationPolicy>::Remove(void* key, uint32_t hash) {
     // All entries between p and q have their initial position between p and q
     // and the entry p can be cleared without breaking the search for these
     // entries.
-    if (q->key == NULL) {
+    if (q->key == Traits::null()) {
       break;
     }
 
     // Find the initial position for the entry at position q.
-    Entry* r = map_ + (q->hash & (capacity_ - 1));
+    Entry* r = map_ + (Traits::hash(q->key) & (capacity_ - 1));
 
     // If the entry at position q has its initial position outside the range
     // between p and q it can be moved forward to position p and will still be
@@ -212,37 +225,37 @@ void* TemplateHashMapImpl<AllocationPolicy>::Remove(void* key, uint32_t hash) {
   }
 
   // Clear the entry which is allowed to en emptied.
-  p->key = NULL;
+  p->key = Traits::null();
   occupancy_--;
-  return value;
+  return true;
 }
 
 
-template<class AllocationPolicy>
-void TemplateHashMapImpl<AllocationPolicy>::Clear() {
+template<typename Traits>
+void QHashMap<Traits>::Clear() {
   // Mark all entries as empty.
   const Entry* end = map_end();
   for (Entry* p = map_; p < end; p++) {
-    p->key = NULL;
+    p->key = Traits::null();
   }
   occupancy_ = 0;
 }
 
 
-template<class AllocationPolicy>
-typename TemplateHashMapImpl<AllocationPolicy>::Entry*
-    TemplateHashMapImpl<AllocationPolicy>::Start() const {
+template<typename Traits>
+typename QHashMap<Traits>::Entry*
+    QHashMap<Traits>::Start() const {
   return Next(map_ - 1);
 }
 
 
-template<class AllocationPolicy>
-typename TemplateHashMapImpl<AllocationPolicy>::Entry*
-    TemplateHashMapImpl<AllocationPolicy>::Next(Entry* p) const {
+template<typename Traits>
+typename QHashMap<Traits>::Entry*
+    QHashMap<Traits>::Next(Entry* p) const {
   const Entry* end = map_end();
-  ASSERT(map_ - 1 <= p && p < end);
+  assert(map_ - 1 <= p && p < end);
   for (p++; p < end; p++) {
-    if (p->key != NULL) {
+    if (p->key != Traits::null()) {
       return p;
     }
   }
@@ -250,18 +263,18 @@ typename TemplateHashMapImpl<AllocationPolicy>::Entry*
 }
 
 
-template<class AllocationPolicy>
-typename TemplateHashMapImpl<AllocationPolicy>::Entry*
-    TemplateHashMapImpl<AllocationPolicy>::Probe(void* key, uint32_t hash) {
-  ASSERT(key != NULL);
+template<typename Traits>
+typename QHashMap<Traits>::Entry*
+    QHashMap<Traits>::Probe(typename Traits::KeyType key) {
+  assert(key != NULL);
 
-  ASSERT(IsPowerOf2(capacity_));
-  Entry* p = map_ + (hash & (capacity_ - 1));
+  assert((capacity_ & (capacity_ - 1)) == 0);
+  Entry* p = map_ + (Traits::hash(key) & (capacity_ - 1));
   const Entry* end = map_end();
-  ASSERT(map_ <= p && p < end);
+  assert(map_ <= p && p < end);
 
-  ASSERT(occupancy_ < capacity_);  // Guarantees loop termination.
-  while (p->key != NULL && (hash != p->hash || !match_(key, p->key))) {
+  assert(occupancy_ < capacity_);  // Guarantees loop termination.
+  while (p->key != Traits::null() && (Traits::hash(key) != Traits::hash(p->key) || !Traits::equals(key, p->key))) {
     p++;
     if (p >= end) {
       p = map_;
@@ -272,88 +285,34 @@ typename TemplateHashMapImpl<AllocationPolicy>::Entry*
 }
 
 
-template<class AllocationPolicy>
-void TemplateHashMapImpl<AllocationPolicy>::Initialize(
-    uint32_t capacity, AllocationPolicy allocator) {
-  ASSERT(IsPowerOf2(capacity));
+template<typename Traits>
+void QHashMap<Traits>::Initialize(
+    size_t capacity, typename Traits::Allocator allocator) {
+  assert((capacity & (capacity - 1)) == 0);
   map_ = reinterpret_cast<Entry*>(allocator.New(capacity * sizeof(Entry)));
-  if (map_ == NULL) {
-    v8::internal::FatalProcessOutOfMemory("HashMap::Initialize");
-    return;
-  }
   capacity_ = capacity;
   Clear();
 }
 
 
-template<class AllocationPolicy>
-void TemplateHashMapImpl<AllocationPolicy>::Resize(AllocationPolicy allocator) {
+template<typename Traits>
+void QHashMap<Traits>::Resize(typename Traits::Allocator allocator) {
   Entry* map = map_;
-  uint32_t n = occupancy_;
+  size_t n = occupancy_;
 
   // Allocate larger map.
   Initialize(capacity_ * 2, allocator);
 
   // Rehash all current entries.
   for (Entry* p = map; n > 0; p++) {
-    if (p->key != NULL) {
-      Lookup(p->key, p->hash, true)->value = p->value;
+    if (p->key != Traits::null()) {
+      Lookup(p->key, true)->value = p->value;
       n--;
     }
   }
 
   // Delete old map.
-  AllocationPolicy::Delete(map);
+  Traits::Allocator::Delete(map);
 }
 
-
-// A hash map for pointer keys and values with an STL-like interface.
-template<class Key, class Value, class AllocationPolicy>
-class TemplateHashMap: private TemplateHashMapImpl<AllocationPolicy> {
- public:
-  STATIC_ASSERT(sizeof(Key*) == sizeof(void*));  // NOLINT
-  STATIC_ASSERT(sizeof(Value*) == sizeof(void*));  // NOLINT
-  struct value_type {
-    Key* first;
-    Value* second;
-  };
-
-  class Iterator {
-   public:
-    Iterator& operator++() {
-      entry_ = map_->Next(entry_);
-      return *this;
-    }
-
-    value_type* operator->() { return reinterpret_cast<value_type*>(entry_); }
-    bool operator!=(const Iterator& other) { return  entry_ != other.entry_; }
-
-   private:
-    Iterator(const TemplateHashMapImpl<AllocationPolicy>* map,
-             typename TemplateHashMapImpl<AllocationPolicy>::Entry* entry) :
-        map_(map), entry_(entry) { }
-
-    const TemplateHashMapImpl<AllocationPolicy>* map_;
-    typename TemplateHashMapImpl<AllocationPolicy>::Entry* entry_;
-
-    friend class TemplateHashMap;
-  };
-
-  TemplateHashMap(
-      typename TemplateHashMapImpl<AllocationPolicy>::MatchFun match,
-      AllocationPolicy allocator = AllocationPolicy())
-        : TemplateHashMapImpl<AllocationPolicy>(
-            match,
-            TemplateHashMapImpl<AllocationPolicy>::kDefaultHashMapCapacity,
-            allocator) { }
-
-  Iterator begin() const { return Iterator(this, this->Start()); }
-  Iterator end() const { return Iterator(this, NULL); }
-  Iterator find(Key* key, bool insert = false) {
-    return Iterator(this, this->Lookup(key, key->Hash(), insert));
-  }
-};
-
-} }  // namespace v8::internal
-
-#endif  // V8_HASHMAP_H_
+#endif  // QHASHMAP_HPP
