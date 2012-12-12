@@ -134,11 +134,8 @@ class QHashMap {
   iterator find(KeyType key) {
     return iterator(this, this->Lookup(key, false));
   }
-  iterator erase(const iterator& i) {
-    iterator n = i;
-    ++n;
+  void erase(const iterator& i) {
     Remove(i.entry_);
-    return n;
   }
 };
 
