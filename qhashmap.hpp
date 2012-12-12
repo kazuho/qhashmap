@@ -67,7 +67,11 @@ class QHashMap {
   // but insert is set, a new entry is inserted with
   // corresponding key, key hash, and NULL value.
   // Otherwise, NULL is returned.
-  Entry* Lookup(KeyType key, bool insert, Allocator allocator = Allocator());
+  Entry* Lookup(KeyType key, bool insert, Allocator allocator = Allocator())
+#if defined(__GNUC__) || defined(__llvm__) || defined(__clang__)
+  __attribute__((always_inline)) // inline the function even if -Os is used
+#endif
+  ;
 
   // Removes the entry with matching key.
   void Remove(Entry* p);
@@ -101,11 +105,7 @@ class QHashMap {
   size_t occupancy_;
 
   Entry* map_end() const { return map_ + capacity_; }
-  Entry* Probe(KeyType key)
-#if defined(__GNUC__) || defined(__llvm__) || defined(__clang__)
-  __attribute__((always_inline)) // inline the function even if -Os is used
-#endif
-  ;
+  Entry* Probe(KeyType key);
   void Initialize(size_t capacity, Allocator allocator = Allocator());
   void Resize(Allocator allocator = Allocator());
 
@@ -135,7 +135,11 @@ class QHashMap {
 
   iterator begin() const { return iterator(this, this->Start()); }
   iterator end() const { return iterator(this, NULL); }
-  iterator find(KeyType key) {
+  iterator find(KeyType key)
+#if defined(__GNUC__) || defined(__llvm__) || defined(__clang__)
+  __attribute__((always_inline)) // inline the function even if -Os is used
+#endif
+{
     return iterator(this, this->Lookup(key, false));
   }
   void erase(const iterator& i) {
