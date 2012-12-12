@@ -101,7 +101,11 @@ class QHashMap {
   size_t occupancy_;
 
   Entry* map_end() const { return map_ + capacity_; }
-  Entry* Probe(KeyType key);
+  Entry* Probe(KeyType key)
+#if defined(__GNUC__) || defined(__llvm__) || defined(__clang__)
+  __attribute__((always_inline)) // inline the function even if -Os is used
+#endif
+  ;
   void Initialize(size_t capacity, Allocator allocator = Allocator());
   void Resize(Allocator allocator = Allocator());
 
@@ -140,14 +144,14 @@ class QHashMap {
 };
 
 template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
-QHashMap<KeyType, ValueType, KeyTraits, Allocator>::QHashMap(
+inline QHashMap<KeyType, ValueType, KeyTraits, Allocator>::QHashMap(
     size_t initial_capacity, Allocator allocator) {
   Initialize(initial_capacity, allocator);
 }
 
 
 template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
-QHashMap<KeyType, ValueType, KeyTraits, Allocator>::QHashMap(
+inline QHashMap<KeyType, ValueType, KeyTraits, Allocator>::QHashMap(
     const QHashMap& x, Allocator allocator) {
   map_ = static_cast<Entry*>(allocator.New(x.capacity_ * sizeof(Entry)));
   capacity_ = x.capacity_;
@@ -157,13 +161,13 @@ QHashMap<KeyType, ValueType, KeyTraits, Allocator>::QHashMap(
 
 
 template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
-QHashMap<KeyType, ValueType, KeyTraits, Allocator>::~QHashMap() {
+inline QHashMap<KeyType, ValueType, KeyTraits, Allocator>::~QHashMap() {
   Allocator::Delete(map_);
 }
 
 
 template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
-typename QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Entry*
+inline typename QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Entry*
 QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Lookup(
     KeyType key, bool insert, Allocator allocator) {
   // Find a matching entry.
@@ -193,7 +197,8 @@ QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Lookup(
 
 
 template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
-void QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Remove(Entry* p) {
+inline void QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Remove(
+    Entry* p) {
   // To remove an entry we need to ensure that it does not create an empty
   // entry that will cause the search for another entry to stop too soon. If all
   // the entries between the entry to remove and the next empty slot have their
@@ -246,7 +251,8 @@ void QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Remove(Entry* p) {
 
 
 template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
-bool QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Remove(KeyType key) {
+inline bool QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Remove(
+    KeyType key) {
   // Lookup the entry for the key to remove.
   Entry* p = Probe(key);
   if (p->first == KeyTraits::null()) {
@@ -259,7 +265,7 @@ bool QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Remove(KeyType key) {
 
 
 template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
-void QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Clear() {
+inline void QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Clear() {
   // Mark all entries as empty.
   const Entry* end = map_end();
   for (Entry* p = map_; p < end; p++) {
@@ -270,15 +276,15 @@ void QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Clear() {
 
 
 template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
-typename QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Entry*
-    QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Start() const {
+inline typename QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Entry*
+QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Start() const {
   return Next(map_ - 1);
 }
 
 
 template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
-typename QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Entry*
-    QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Next(Entry* p) const {
+inline typename QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Entry*
+QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Next(Entry* p) const {
   const Entry* end = map_end();
   assert(map_ - 1 <= p && p < end);
   for (p++; p < end; p++) {
@@ -291,8 +297,8 @@ typename QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Entry*
 
 
 template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
-typename QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Entry*
-    QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Probe(KeyType key) {
+inline typename QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Entry*
+QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Probe(KeyType key) {
   assert(key != NULL);
 
   assert((capacity_ & (capacity_ - 1)) == 0);
@@ -315,7 +321,7 @@ typename QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Entry*
 
 
 template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
-void QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Initialize(
+inline void QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Initialize(
     size_t capacity, Allocator allocator) {
   assert((capacity & (capacity - 1)) == 0);
   map_ = reinterpret_cast<Entry*>(allocator.New(capacity * sizeof(Entry)));
@@ -325,7 +331,7 @@ void QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Initialize(
 
 
 template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
-void QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Resize(
+inline void QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Resize(
     Allocator allocator) {
   Entry* map = map_;
   size_t n = occupancy_;
