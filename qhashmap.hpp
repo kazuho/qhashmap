@@ -99,6 +99,12 @@ class QHashMap {
   Entry* Start() const;
   Entry* Next(Entry* p) const;
 
+  void swap(QHashMap& other) {
+    std::swap(map_, other.map_);
+    std::swap(capacity_, other.capacity_);
+    std::swap(occupancy_, other.occupancy_);
+  }
+
  private:
   Entry* map_;
   size_t capacity_;
