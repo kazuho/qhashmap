@@ -309,7 +309,7 @@ QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Next(Entry* p) const {
 template<typename KeyType, typename ValueType, class KeyTraits, class Allocator>
 inline typename QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Entry*
 QHashMap<KeyType, ValueType, KeyTraits, Allocator>::Probe(KeyType key) {
-  assert(key != NULL);
+  assert(key != KeyTraits::null());
 
   assert((capacity_ & (capacity_ - 1)) == 0);
   Entry* p = map_ + (KeyTraits::hash(key) & (capacity_ - 1));
